@@ -19,15 +19,11 @@ jobs:
         with:
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v2
       - name: Install Cargo lambda
         shell: bash
         run: |
-          cargo install cargo-binstall
-          cargo binstall cargo-lambda
-      - uses: Swatinem/rust-cache@v2
-      - uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.13.0
+          pip install cargo-lambda
       - name: Building and packaging x86_64
         shell: bash
         run: |
