@@ -1,6 +1,6 @@
 [package]
 name = "vaporcache"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 
 [dependencies]
@@ -12,3 +12,4 @@ redis = { version = "0.28.2", features = [
     "connection-manager",
     "disable-client-setinfo",
 ] }
+combine = { version = "4.6", default-features = false, features = ["std"] }

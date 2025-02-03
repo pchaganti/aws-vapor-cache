@@ -1,5 +1,11 @@
+use combine::{
+    parser::combinator::AnySendSyncPartialState,
+    stream::{Decoder, PointerOffset},
+};
+use redis::parse_redis_value_async;
+
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncWriteExt, BufReader},
     sync::watch,
 };
 
@@ -8,17 +14,13 @@ pub struct Handler;
 impl Handler {
     pub async fn start(mut socket: tokio::net::TcpStream, stop_rx: watch::Receiver<bool>) {
         tokio::spawn(async move {
+            let (reader, mut writer) = socket.split();
+            let mut stream = BufReader::new(reader);
+            let mut decoder = Decoder::<AnySendSyncPartialState, PointerOffset<[u8]>>::default();
             while !stop_rx.has_changed().is_ok_and(|v| v) {
-                let mut buf = [0u8; 1024];
-                let len = socket.read(&mut buf).await.expect("error reading");
-                if len == 0 {
-                    break;
-                }
-                let mut redis_parser = redis::Parser::new();
-                let value = redis_parser
-                    .parse_value(&mut &buf[..len])
+                let value = parse_redis_value_async(&mut decoder, &mut stream)
+                    .await
                     .expect("error parsing");
-                // A client sends to the Redis server a RESP Array consisting of just Bulk Strings.
                 if let redis::Value::Array(arr) = value {
                     let command: Vec<&[u8]> = arr
                         .iter()
@@ -32,16 +34,16 @@ impl Handler {
                         .collect();
                     if command.len() == 1 && command[0] == b"PING" {
                         println!("Received PING");
-                        let _ = socket.write_all(b"+PONG\r\n").await;
+                        let _ = writer.write_all(b"+PONG\r\n").await;
                     } else {
                         println!("Received unknown command");
-                        let _ = socket.write_all(b"-ERR unknown command\r\n").await;
+                        let _ = writer.write_all(b"-ERR unknown command\r\n").await;
                     }
                 } else {
                     println!("Received unknown command");
-                    let _ = socket.write_all(b"-ERR unknown command\r\n").await;
+                    let _ = writer.write_all(b"-ERR unknown command\r\n").await;
                 }
-                socket.flush().await.expect("error flushing");
+                writer.flush().await.expect("error flushing");
             }
         });
     }
