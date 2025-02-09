@@ -8,6 +8,7 @@ pub trait Command {
 }
 
 mod get;
+mod hello;
 mod ping;
 mod set;
 
@@ -27,6 +28,7 @@ pub async fn execute_command(
                         b"PING" => ping::PingCommand::execute(command, database).await,
                         b"SET" => set::SetCommand::execute(command, database).await,
                         b"GET" => get::GetCommand::execute(command, database).await,
+                        b"HELLO" => hello::HelloCommand::execute(command, database).await,
                         _ => Err(format!(
                             "unsupported command '{}'",
                             String::from_utf8(command_name).unwrap_or("".to_string())

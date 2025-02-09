@@ -78,6 +78,21 @@ impl<'a> Parser<'a> {
                     writer.write_all(string.as_bytes()).await?;
                     writer.write_all(b"\r\n").await?;
                 }
+                redis::Value::Array(items) => {
+                    writer
+                        .write_all(format!("*{}\r\n", items.len()).as_bytes())
+                        .await?;
+                    items.into_iter().for_each(|item| values.push_back(item));
+                }
+                redis::Value::Map(items) => {
+                    writer
+                        .write_all(format!("%{}\r\n", items.len()).as_bytes())
+                        .await?;
+                    items.into_iter().for_each(|(key, value)| {
+                        values.push_back(key);
+                        values.push_back(value);
+                    });
+                }
                 _ => {
                     writer.write_all(b"-ERR unsupported response\r\n").await?;
                 }

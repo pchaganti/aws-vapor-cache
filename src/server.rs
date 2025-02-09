@@ -45,7 +45,7 @@ mod tests {
         eprintln!("Starting server");
 
         let server = VaporCacheServer::start().await.unwrap();
-        let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+        let client = redis::Client::open("redis://127.0.0.1/?protocol=3").unwrap();
         let mut con = client.get_connection_manager().await.unwrap();
 
         assert!(con.ping::<()>().await.is_ok());
