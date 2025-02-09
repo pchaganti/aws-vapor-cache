@@ -1,49 +1,34 @@
-use combine::{
-    parser::combinator::AnySendSyncPartialState,
-    stream::{Decoder, PointerOffset},
-};
-use redis::parse_redis_value_async;
+use lambda_extension::tracing;
+use tokio::sync::watch;
 
-use tokio::{
-    io::{AsyncWriteExt, BufReader},
-    sync::watch,
-};
+use crate::{commands::execute_command, database::Database, parser::Parser};
 
 pub struct Handler;
 
 impl Handler {
-    pub async fn start(mut socket: tokio::net::TcpStream, stop_rx: watch::Receiver<bool>) {
+    pub async fn start(
+        mut socket: tokio::net::TcpStream,
+        database: Database,
+        stop_rx: watch::Receiver<bool>,
+    ) {
         tokio::spawn(async move {
             let (reader, mut writer) = socket.split();
-            let mut stream = BufReader::new(reader);
-            let mut decoder = Decoder::<AnySendSyncPartialState, PointerOffset<[u8]>>::default();
+            let mut parser = Parser::new(reader);
+
             while !stop_rx.has_changed().is_ok_and(|v| v) {
-                let value = parse_redis_value_async(&mut decoder, &mut stream)
-                    .await
-                    .expect("error parsing");
-                if let redis::Value::Array(arr) = value {
-                    let command: Vec<&[u8]> = arr
-                        .iter()
-                        .map(|v| {
-                            if let redis::Value::BulkString(s) = v {
-                                s.as_ref()
-                            } else {
-                                panic!("Expected BulkString");
-                            }
-                        })
-                        .collect();
-                    if command.len() == 1 && command[0] == b"PING" {
-                        println!("Received PING");
-                        let _ = writer.write_all(b"+PONG\r\n").await;
-                    } else {
-                        println!("Received unknown command");
-                        let _ = writer.write_all(b"-ERR unknown command\r\n").await;
+                match parser.read().await {
+                    Ok(request) => {
+                        let response = execute_command(&request, database.clone());
+                        if parser.write(response, &mut writer).await.is_err() {
+                            tracing::error!("Error writing response");
+                            break;
+                        }
                     }
-                } else {
-                    println!("Received unknown command");
-                    let _ = writer.write_all(b"-ERR unknown command\r\n").await;
+                    Err(error) => {
+                        tracing::error!("Error reading request. {}", error.error);
+                        break;
+                    }
                 }
-                writer.flush().await.expect("error flushing");
             }
         });
     }

@@ -1,7 +1,10 @@
 use lambda_extension::{service_fn, tracing, Error, Extension};
 
+mod commands;
+mod database;
 mod events_extension;
 mod handler;
+mod parser;
 mod server;
 
 use events_extension::events_processor;
