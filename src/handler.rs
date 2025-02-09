@@ -18,7 +18,7 @@ impl Handler {
             while !stop_rx.has_changed().is_ok_and(|v| v) {
                 match parser.read().await {
                     Ok(request) => {
-                        let response = execute_command(&request, database.clone());
+                        let response = execute_command(&request, database.clone()).await;
                         if parser.write(response, &mut writer).await.is_err() {
                             tracing::error!("Error writing response");
                             break;

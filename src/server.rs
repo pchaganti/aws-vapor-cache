@@ -49,8 +49,14 @@ mod tests {
         let mut con = client.get_connection_manager().await.unwrap();
 
         assert!(con.ping::<()>().await.is_ok());
-        assert!(con.ping_message::<_, ()>("salam").await.is_ok());
-        assert!(con.get::<_, String>("foo").await.is_err());
+        assert_eq!(con.ping::<String>().await, Ok("PONG".to_string()));
+        assert_eq!(
+            con.ping_message::<_, String>("Hello World!").await,
+            Ok("Hello World!".to_string())
+        );
+        assert!(con.set::<_, _, ()>("foo", "bar").await.is_ok());
+        assert_eq!(con.get::<_, String>("foo").await.unwrap(), "bar");
+        assert_eq!(con.get::<_, Option<String>>("boo").await.unwrap(), None);
         server.stop().await.unwrap();
     }
 }
