@@ -55,8 +55,14 @@ mod tests {
             Ok("Hello World!".to_string())
         );
         assert!(con.set::<_, _, ()>("foo", "bar").await.is_ok());
-        assert_eq!(con.get::<_, String>("foo").await.unwrap(), "bar");
+        assert_eq!(
+            con.get::<_, Option<String>>("foo").await.unwrap(),
+            Some("bar".to_string())
+        );
         assert_eq!(con.get::<_, Option<String>>("boo").await.unwrap(), None);
+        assert!(con.del::<_, ()>("foo").await.is_ok());
+        assert_eq!(con.get::<_, Option<String>>("foo").await.unwrap(), None);
+
         server.stop().await.unwrap();
     }
 }

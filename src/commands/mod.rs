@@ -7,6 +7,7 @@ pub trait Command {
     async fn execute(request: &[Value], database: Database) -> Result<Value, CommandError>;
 }
 
+mod del;
 mod get;
 mod hello;
 mod ping;
@@ -29,6 +30,7 @@ pub async fn execute_command(
                         b"SET" => set::SetCommand::execute(command, database).await,
                         b"GET" => get::GetCommand::execute(command, database).await,
                         b"HELLO" => hello::HelloCommand::execute(command, database).await,
+                        b"DEL" => del::DelCommand::execute(command, database).await,
                         _ => Err(format!(
                             "unsupported command '{}'",
                             String::from_utf8(command_name).unwrap_or("".to_string())
